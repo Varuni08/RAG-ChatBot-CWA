@@ -1,0 +1,6 @@
+streamlit
+groq
+pinecone
+sentence-transformers
+pandas
+numpy
