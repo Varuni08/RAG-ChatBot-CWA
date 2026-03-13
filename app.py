@@ -8,7 +8,7 @@ import re
 from sentence_transformers import SentenceTransformer
 
     
-# cashe - 1 time
+# cache - 1 time
 @st.cache_resource
 def load_clients():
     pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
@@ -16,6 +16,24 @@ def load_clients():
     groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
     return index, groq_client, embedding_model
+
+@st.cache_data
+def load_data():
+    """Load the veggie sales CSV data. Update the path/filename to match your actual file."""
+    # Try common filenames - update this to match your actual CSV file
+    possible_paths = [
+        "data.csv",
+        "veggie_sales.csv",
+        "sales_data.csv",
+        "supermarket_sales.csv",
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return pd.read_csv(path)
+    
+    # If no file found, return an empty DataFrame with expected columns
+    st.warning("⚠️ No data CSV file found. Please ensure your CSV file is in the app directory.")
+    return pd.DataFrame(columns=["Date", "Unit Selling Price", "Quantity Sold", "Item Name", "Category"])
 
 index, groq_client, embedding_model = load_clients()
 df = load_data()
@@ -77,7 +95,6 @@ def generate_answer(query, contexts):
     return response.choices[0].message.content
 
 # graph plotting
-
 def show_context_graphs(contexts):
     if not contexts:
         return
@@ -89,7 +106,7 @@ def show_context_graphs(contexts):
 
     st.subheader("Retrieved Data Insights")
 
-    # ex: scores by item
+    # scores by item
     if "item_name" in df.columns and "score" in df.columns:
         plot_df = df[df["item_name"].astype(str).str.strip() != ""][["item_name", "score"]].head(10)
 
@@ -102,7 +119,7 @@ def show_context_graphs(contexts):
             plt.xticks(rotation=45, ha="right")
             st.pyplot(fig)
 
-    # ex: doc type count
+    # doc type count
     if "doc_type" in df.columns:
         type_counts = df["doc_type"].value_counts()
 
@@ -148,7 +165,6 @@ def show_yearwise_sales_graph(df):
     st.pyplot(fig)
 
 
-
 # Streamlit UI
 st.title("Supermarket's Veggie Sales Chatbot")
 st.caption("APIs - Groq + Pinecone + Sentence Transformers")
@@ -168,6 +184,8 @@ if prompt := st.chat_input("Ask about veggie sales, revenue, margins..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    contexts = []  # initialize so it's always defined
+
     with st.chat_message("assistant"):
         with st.spinner("Thinking !"):
             # graph request handling
@@ -180,16 +198,15 @@ if prompt := st.chat_input("Ask about veggie sales, revenue, margins..."):
                 contexts = retrieve_context(prompt)
                 answer = generate_answer(prompt, contexts)
 
-          
-            if contexts:
-                sources = "\n\n**Sources:**\n" + "\n".join([
-                    f"- `{doc['doc_type']}` (score: {doc['score']:.2f})" +
-                    (f" — {doc['date']}" if doc.get("date") else "")
-                    for doc in contexts[:3]
-                ])
-                full_response = answer + sources
-            else:
-                full_response = answer
+                if contexts:
+                    sources = "\n\n**Sources:**\n" + "\n".join([
+                        f"- `{doc['doc_type']}` (score: {doc['score']:.2f})" +
+                        (f" — {doc['date']}" if doc.get("date") else "")
+                        for doc in contexts[:3]
+                    ])
+                    full_response = answer + sources
+                else:
+                    full_response = answer
 
         st.markdown(full_response)
         st.divider()
