@@ -4,3 +4,6 @@ pinecone
 sentence-transformers
 pandas
 numpy
+matplotlib
+torch
+scikit-learn
