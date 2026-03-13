@@ -7,10 +7,6 @@ import matplotlib.pyplot as plt
 import re
 from sentence_transformers import SentenceTransformer
 
-@st.cache_data
-def load_data():
-    df = pd.read_csv("annex2.csv")   
-    return df
     
 # cashe - 1 time
 @st.cache_resource
