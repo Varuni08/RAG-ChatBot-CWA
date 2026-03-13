@@ -17,23 +17,6 @@ def load_clients():
     embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
     return index, groq_client, embedding_model
 
-@st.cache_data
-def load_data():
-    """Load the veggie sales CSV data. Update the path/filename to match your actual file."""
-    # Try common filenames - update this to match your actual CSV file
-    possible_paths = [
-        "data.csv",
-        "veggie_sales.csv",
-        "sales_data.csv",
-        "supermarket_sales.csv",
-    ]
-    for path in possible_paths:
-        if os.path.exists(path):
-            return pd.read_csv(path)
-    
-    # If no file found, return an empty DataFrame with expected columns
-    st.warning("⚠️ No data CSV file found. Please ensure your CSV file is in the app directory.")
-    return pd.DataFrame(columns=["Date", "Unit Selling Price", "Quantity Sold", "Item Name", "Category"])
 
 index, groq_client, embedding_model = load_clients()
 df = load_data()
