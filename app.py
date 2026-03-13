@@ -2,6 +2,8 @@ import os
 import streamlit as st
 from groq import Groq
 from pinecone import Pinecone
+import pandas as pd
+import matplotlib.pyplot as plt
 from sentence_transformers import SentenceTransformer
 
 # cashe - 1 time
@@ -71,6 +73,48 @@ def generate_answer(query, contexts):
     )
     return response.choices[0].message.content
 
+# graph plotting
+
+def show_context_graphs(contexts):
+    if not contexts:
+        return
+
+    df = pd.DataFrame(contexts)
+
+    if df.empty:
+        return
+
+    st.subheader("Retrieved Data Insights")
+
+    # ex: scores by item
+    if "item_name" in df.columns and "score" in df.columns:
+        plot_df = df[df["item_name"].astype(str).str.strip() != ""][["item_name", "score"]].head(10)
+
+        if not plot_df.empty:
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.bar(plot_df["item_name"], plot_df["score"])
+            ax.set_title("Top Retrieved Items by Similarity Score")
+            ax.set_xlabel("Item Name")
+            ax.set_ylabel("Score")
+            plt.xticks(rotation=45, ha="right")
+            st.pyplot(fig)
+
+    # ex: doc type count
+    if "doc_type" in df.columns:
+        type_counts = df["doc_type"].value_counts()
+
+        if not type_counts.empty:
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.bar(type_counts.index, type_counts.values)
+            ax.set_title("Retrieved Sources by Document Type")
+            ax.set_xlabel("Document Type")
+            ax.set_ylabel("Count")
+            plt.xticks(rotation=30, ha="right")
+            st.pyplot(fig)
+
+    # Show raw retrieved table
+    st.dataframe(df)
+
 # Streamlit UI
 st.title("Supermarket's Veggie Sales Chatbot")
 st.caption("APIs - Groq + Pinecone + Sentence Transformers")
@@ -106,4 +150,6 @@ if prompt := st.chat_input("Ask about veggie sales, revenue, margins..."):
                 full_response = answer
 
         st.markdown(full_response)
+        st.divider()
+        show_context_graphs(contexts)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
