@@ -9,7 +9,7 @@ from sentence_transformers import SentenceTransformer
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("your_dataset.csv")   # replace with your actual csv file name
+    df = pd.read_csv("annex2.csv")   
     return df
     
 # cashe - 1 time
