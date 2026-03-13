@@ -4,8 +4,14 @@ from groq import Groq
 from pinecone import Pinecone
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
 from sentence_transformers import SentenceTransformer
 
+@st.cache_data
+def load_data():
+    df = pd.read_csv("your_dataset.csv")   # replace with your actual csv file name
+    return df
+    
 # cashe - 1 time
 @st.cache_resource
 def load_clients():
@@ -16,6 +22,7 @@ def load_clients():
     return index, groq_client, embedding_model
 
 index, groq_client, embedding_model = load_clients()
+df = load_data()
 
 # RAG functions
 def get_embeddings(texts):
@@ -115,6 +122,37 @@ def show_context_graphs(contexts):
     # Show raw retrieved table
     st.dataframe(df)
 
+def is_graph_request(prompt):
+    prompt = prompt.lower()
+    graph_words = ["graph", "chart", "plot", "visualize", "visualisation", "visualization", "trend"]
+    return any(word in prompt for word in graph_words)
+
+# year wise sales
+def show_yearwise_sales_graph(df):
+    df = df.copy()
+
+    # make sure date column is datetime
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+    # create sales if not already present
+    if "Sales" not in df.columns:
+        df["Sales"] = df["Unit Selling Price"] * df["Quantity Sold"]
+
+    df["Year"] = df["Date"].dt.year
+    year_sales = df.groupby("Year", as_index=False)["Sales"].sum()
+
+    st.subheader("Year-wise Sales Graph")
+    st.dataframe(year_sales)
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.bar(year_sales["Year"].astype(str), year_sales["Sales"])
+    ax.set_title("Year-wise Sales")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Sales")
+    st.pyplot(fig)
+
+
+
 # Streamlit UI
 st.title("Supermarket's Veggie Sales Chatbot")
 st.caption("APIs - Groq + Pinecone + Sentence Transformers")
@@ -136,9 +174,17 @@ if prompt := st.chat_input("Ask about veggie sales, revenue, margins..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking !"):
-            contexts = retrieve_context(prompt)
-            answer = generate_answer(prompt, contexts)
+            # graph request handling
+            if is_graph_request(prompt) and "year" in prompt.lower() and "sales" in prompt.lower():
+                st.markdown("Here is the year-wise sales graph:")
+                show_yearwise_sales_graph(df)
+                full_response = "Displayed year-wise sales graph."
 
+            else:
+                contexts = retrieve_context(prompt)
+                answer = generate_answer(prompt, contexts)
+
+          
             if contexts:
                 sources = "\n\n**Sources:**\n" + "\n".join([
                     f"- `{doc['doc_type']}` (score: {doc['score']:.2f})" +
